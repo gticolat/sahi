@@ -248,10 +248,10 @@ def get_sliced_prediction(
             image_list=image_list,
             detection_model=detection_model,
             shift_amount=shift_amount_list,
-            full_shape=[
+            full_shape=[[
                 slice_image_result.original_image_height,
                 slice_image_result.original_image_width,
-            ],
+            ]]*num_batch,
         )
         # convert sliced predictions to full predictions
         for object_prediction in prediction_result.object_prediction_list:
