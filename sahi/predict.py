@@ -272,8 +272,8 @@ def get_sliced_prediction(
             full_shape=None,
             postprocess=None,
         )
-        object_prediction_list.extend([prediction_result.object_prediction_list
-                                       for prediction_result in prediction_result_list])
+        for prediction_result in prediction_result_list:
+            object_prediction_list.append(prediction_result.object_prediction_list)
 
     # merge matching predictions
     if len(object_prediction_list) > 1:
