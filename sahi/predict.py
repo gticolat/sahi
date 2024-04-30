@@ -61,13 +61,13 @@ def get_prediction(
     full_shape=None,
     postprocess: Optional[PostprocessPredictions] = None,
     verbose: int = 0,
-) -> PredictionResult:
+) -> list[PredictionResult]:
     """
     Function for performing prediction for given image using given detection_model.
 
     Arguments:
         image_list: list
-            list of slice image location
+            list of image location
         detection_model: model.DetectionMode
         shift_amount: List
             To shift the box and mask predictions from sliced image to full
@@ -119,9 +119,9 @@ def get_prediction(
             "seconds.",
         )
 
-    return PredictionResult(
+    return [PredictionResult(
         image=image, object_prediction_list=object_prediction_list, durations_in_seconds=durations_in_seconds
-    )
+    ) for image in image_list]
 
 
 def get_sliced_prediction(
@@ -244,7 +244,7 @@ def get_sliced_prediction(
             image_list.append(slice_image_result.images[group_index * num_batch + image_index])
             shift_amount_list.append(slice_image_result.starting_pixels[group_index * num_batch + image_index])
         # perform batch prediction
-        prediction_result = get_prediction(
+        prediction_result_list = get_prediction(
             image_list=image_list,
             detection_model=detection_model,
             shift_amount=shift_amount_list,
@@ -254,9 +254,10 @@ def get_sliced_prediction(
             ]]*num_batch,
         )
         # convert sliced predictions to full predictions
-        for object_prediction in prediction_result.object_prediction_list:
-            if object_prediction:  # if not empty
-                object_prediction_list.append(object_prediction.get_shifted_object_prediction())
+        for prediction_result in prediction_result_list:
+            for object_prediction in prediction_result.object_prediction_list:
+                if object_prediction:  # if not empty
+                    object_prediction_list.append(object_prediction.get_shifted_object_prediction())
 
         # merge matching predictions during sliced prediction
         if merge_buffer_length is not None and len(object_prediction_list) > merge_buffer_length:
@@ -264,14 +265,15 @@ def get_sliced_prediction(
 
     # perform standard prediction
     if num_slices > 1 and perform_standard_pred:
-        prediction_result = get_prediction(
-            image=image,
+        prediction_result_list = get_prediction(
+            image_list=[image],
             detection_model=detection_model,
             shift_amount=[0, 0],
             full_shape=None,
             postprocess=None,
         )
-        object_prediction_list.extend(prediction_result.object_prediction_list)
+        object_prediction_list.extend([prediction_result.object_prediction_list
+                                       for prediction_result in prediction_result_list])
 
     # merge matching predictions
     if len(object_prediction_list) > 1:
