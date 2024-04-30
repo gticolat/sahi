@@ -245,7 +245,7 @@ def get_sliced_prediction(
             shift_amount_list.append(slice_image_result.starting_pixels[group_index * num_batch + image_index])
         # perform batch prediction
         prediction_result = get_prediction(
-            image=image_list,
+            image_list=image_list,
             detection_model=detection_model,
             shift_amount=shift_amount_list,
             full_shape=[
