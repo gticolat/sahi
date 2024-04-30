@@ -50,21 +50,21 @@ class Yolov5DetectionModel(DetectionModel):
             category_mapping = {str(ind): category_name for ind, category_name in enumerate(self.category_names)}
             self.category_mapping = category_mapping
 
-    def perform_inference(self, image: np.ndarray):
+    def perform_inference(self, images: list):
         """
         Prediction is performed using self.model and the prediction result is set to self._original_predictions.
         Args:
-            image: np.ndarray
-                A numpy array that contains the image to be predicted. 3 channel image should be in RGB order.
+            image: list
+                List of numpy array that contains the image to be predicted. 3 channel image should be in RGB order.
         """
 
         # Confirm model is loaded
         if self.model is None:
             raise ValueError("Model is not loaded, load it by calling .load_model()")
         if self.image_size is not None:
-            prediction_result = self.model(image, size=self.image_size)
+            prediction_result = self.model(images, size=self.image_size)
         else:
-            prediction_result = self.model(image)
+            prediction_result = self.model(images)
 
         self._original_predictions = prediction_result
 

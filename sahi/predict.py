@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_prediction(
-    image,
+    image_list,
     detection_model,
     shift_amount: list = [0, 0],
     full_shape=None,
@@ -66,8 +66,8 @@ def get_prediction(
     Function for performing prediction for given image using given detection_model.
 
     Arguments:
-        image: str or np.ndarray
-            Location of image or numpy image matrix to slice
+        image_list: list
+            list of slice image location
         detection_model: model.DetectionMode
         shift_amount: List
             To shift the box and mask predictions from sliced image to full
@@ -87,10 +87,12 @@ def get_prediction(
     durations_in_seconds = dict()
 
     # read image as pil
-    image_as_pil = read_image_as_pil(image)
+    image_as_pil = [read_image_as_pil(image) for image in image_list]
     # get prediction
     time_start = time.time()
-    detection_model.perform_inference(np.ascontiguousarray(image_as_pil))
+
+    numpy_image = [np.ascontiguousarray(image) for image in image_as_pil]
+    detection_model.perform_inference(numpy_image)
     time_end = time.time() - time_start
     durations_in_seconds["prediction"] = time_end
 
@@ -139,6 +141,7 @@ def get_sliced_prediction(
     verbose: int = 1,
     merge_buffer_length: int = None,
     auto_slice_resolution: bool = True,
+    num_batch: int = 1,
 ) -> PredictionResult:
     """
     Function for slice image + get predicion for each slice + combine predictions in full image.
@@ -184,6 +187,8 @@ def get_sliced_prediction(
         auto_slice_resolution: bool
             if slice parameters (slice_height, slice_width) are not given,
             it enables automatically calculate these params from image resolution and orientation.
+        num_batch: int
+            Parallelize inference of slice image in the GPU. Increase batch size mean faster inference.
 
     Returns:
         A Dict with fields:
@@ -193,9 +198,6 @@ def get_sliced_prediction(
 
     # for profiling
     durations_in_seconds = dict()
-
-    # currently only 1 batch supported
-    num_batch = 1
 
     # create slices from full image
     time_start = time.time()
@@ -234,18 +236,18 @@ def get_sliced_prediction(
         tqdm.write(f"Performing prediction on {num_slices} slices.")
     object_prediction_list = []
     # perform sliced prediction
-    for group_ind in range(num_group):
+    for group_index in range(num_group):
         # prepare batch (currently supports only 1 batch)
         image_list = []
         shift_amount_list = []
-        for image_ind in range(num_batch):
-            image_list.append(slice_image_result.images[group_ind * num_batch + image_ind])
-            shift_amount_list.append(slice_image_result.starting_pixels[group_ind * num_batch + image_ind])
+        for image_index in range(num_batch):
+            image_list.append(slice_image_result.images[group_index * num_batch + image_index])
+            shift_amount_list.append(slice_image_result.starting_pixels[group_index * num_batch + image_index])
         # perform batch prediction
         prediction_result = get_prediction(
-            image=image_list[0],
+            image=image_list,
             detection_model=detection_model,
-            shift_amount=shift_amount_list[0],
+            shift_amount=shift_amount_list,
             full_shape=[
                 slice_image_result.original_image_height,
                 slice_image_result.original_image_width,
