@@ -174,10 +174,7 @@ class DetectionModel:
 
     @property
     def object_prediction_list(self):
-        _object_prediction_list = [prediction
-                                   for prediction in self._object_prediction_list_per_image
-                                   if prediction]
-        return _object_prediction_list
+        return self._object_prediction_list_per_image
 
     @property
     def object_prediction_list_per_image(self):
