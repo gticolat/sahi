@@ -257,7 +257,8 @@ def get_sliced_prediction(
         for prediction_result in prediction_result_list:
             for object_prediction in prediction_result.object_prediction_list:
                 if object_prediction:  # if not empty
-                    object_prediction_list.append(object_prediction[0].get_shifted_object_prediction())
+                    for prediction in object_prediction:
+                        object_prediction_list.append(prediction.get_shifted_object_prediction())
 
         # merge matching predictions during sliced prediction
         if merge_buffer_length is not None and len(object_prediction_list) > merge_buffer_length:
@@ -272,7 +273,12 @@ def get_sliced_prediction(
             full_shape=None,
             postprocess=None,
         )
-        object_prediction_list.extend(prediction_result_list[0].object_prediction_list)
+        if prediction_result_list:  # if not empty
+            for prediction_result in prediction_result_list:
+                for object_prediction in prediction_result.object_prediction_list:
+                    if object_prediction:  # if not empty
+                        for prediction in object_prediction:
+                            object_prediction_list.append(prediction.get_shifted_object_prediction())
 
     # merge matching predictions
     if len(object_prediction_list) > 1:
