@@ -147,6 +147,7 @@ def perform_batch(
             slice_image_result.original_image_height,
             slice_image_result.original_image_width,
         ]] * batch_size,
+        verbose=1
     )
     # convert sliced predictions to full predictions
     for prediction_result in prediction_result_list:
