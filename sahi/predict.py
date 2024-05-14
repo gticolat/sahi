@@ -124,6 +124,44 @@ def get_prediction(
     ) for image in image_list]
 
 
+def perform_batch(
+        start_index,
+        batch_size,
+        slice_image_result,
+        detection_model,
+        object_prediction_list,
+        merge_buffer_length,
+        postprocess
+):
+    image_list = []
+    shift_amount_list = []
+    for image_index in range(batch_size):
+        image_list.append(slice_image_result.images[start_index + image_index])
+        shift_amount_list.append(slice_image_result.starting_pixels[start_index + image_index])
+    # perform batch prediction
+    prediction_result_list = get_prediction(
+        image_list=image_list,
+        detection_model=detection_model,
+        shift_amount=shift_amount_list,
+        full_shape=[[
+            slice_image_result.original_image_height,
+            slice_image_result.original_image_width,
+        ]] * batch_size,
+    )
+    # convert sliced predictions to full predictions
+    for prediction_result in prediction_result_list:
+        for object_prediction in prediction_result.object_prediction_list:
+            if object_prediction:  # if not empty
+                for prediction in object_prediction:
+                    object_prediction_list.append(prediction.get_shifted_object_prediction())
+
+    # merge matching predictions during sliced prediction
+    if merge_buffer_length is not None and len(object_prediction_list) > merge_buffer_length:
+        object_prediction_list = postprocess(object_prediction_list)
+
+    return object_prediction_list
+
+
 def get_sliced_prediction(
     image,
     detection_model=None,
@@ -232,37 +270,21 @@ def get_sliced_prediction(
 
     # create prediction input
     num_group = int(num_slices / num_batch)
+    remaining_slices = num_slices % num_batch
+
     if verbose == 1 or verbose == 2:
         tqdm.write(f"Performing prediction on {num_slices} slices.")
     object_prediction_list = []
     # perform sliced prediction
     for group_index in range(num_group):
-        # prepare batch (currently supports only 1 batch)
-        image_list = []
-        shift_amount_list = []
-        for image_index in range(num_batch):
-            image_list.append(slice_image_result.images[group_index * num_batch + image_index])
-            shift_amount_list.append(slice_image_result.starting_pixels[group_index * num_batch + image_index])
-        # perform batch prediction
-        prediction_result_list = get_prediction(
-            image_list=image_list,
-            detection_model=detection_model,
-            shift_amount=shift_amount_list,
-            full_shape=[[
-                slice_image_result.original_image_height,
-                slice_image_result.original_image_width,
-            ]]*num_batch,
-        )
-        # convert sliced predictions to full predictions
-        for prediction_result in prediction_result_list:
-            for object_prediction in prediction_result.object_prediction_list:
-                if object_prediction:  # if not empty
-                    for prediction in object_prediction:
-                        object_prediction_list.append(prediction.get_shifted_object_prediction())
+        start_index = group_index * num_batch
+        object_prediction_list = perform_batch(start_index, num_batch, slice_image_result, detection_model,
+                                               object_prediction_list, merge_buffer_length, postprocess)
 
-        # merge matching predictions during sliced prediction
-        if merge_buffer_length is not None and len(object_prediction_list) > merge_buffer_length:
-            object_prediction_list = postprocess(object_prediction_list)
+    if remaining_slices > 0:
+        start_index = num_group * num_batch
+        object_prediction_list = perform_batch(start_index, remaining_slices, slice_image_result, detection_model,
+                                               object_prediction_list, merge_buffer_length, postprocess)
 
     # perform standard prediction
     if num_slices > 1 and perform_standard_pred:
