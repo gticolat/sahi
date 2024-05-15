@@ -60,16 +60,12 @@ class Yolov5DetectionModel(DetectionModel):
         """
 
         # Confirm model is loaded
-        time_start = time.time()
         if self.model is None:
             raise ValueError("Model is not loaded, load it by calling .load_model()")
         if self.image_size is not None:
             prediction_result = self.model(images, size=self.image_size)
         else:
             prediction_result = self.model(images)
-
-        time_end = time.time() - time_start
-        print(time_end)
 
         self._original_predictions = prediction_result
 
